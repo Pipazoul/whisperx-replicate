@@ -11,11 +11,26 @@ import whisperx
 import tempfile
 import time
 import torch
+import base64
 
 compute_type = "float16"  # change to "int8" if low on GPU mem (may reduce accuracy)
 device = "cuda"
 whisper_arch = "./models/faster-whisper-large-v3"
 
+
+def save_base64_to_audio_file(audio_base64):
+    # Decode the base64 string
+    audio_bytes = base64.b64decode(audio_base64)
+    
+    # Create a temporary file to save the decoded audio
+    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")  # Using WAV format for broad compatibility
+    temp_file_path = Path(temp_file.name)
+    
+    # Write the decoded bytes to the file
+    with open(temp_file_path, 'wb') as f:
+        f.write(audio_bytes)
+    
+    return temp_file_path
 
 class Output(BaseModel):
     segments: Any
@@ -39,7 +54,7 @@ class Predictor(BasePredictor):
 
     def predict(
             self,
-            audio_file: Path = Input(description="Audio file"),
+            audio_base64: str = Input(description="Audio file in base64"),
             language: str = Input(
                 description="ISO code of the language spoken in the audio, specify None to perform language detection",
                 default=None),
@@ -99,6 +114,10 @@ class Predictor(BasePredictor):
                 "vad_onset": vad_onset,
                 "vad_offset": vad_offset
             }
+
+            # save audiobase64 to file
+            audio_file = save_base64_to_audio_file(audio_base64)
+
 
             audio_duration = get_audio_duration(audio_file)
 
